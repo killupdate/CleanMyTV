@@ -1,0 +1,7 @@
+#!/bin/sh
+# Independent snapshot: block bootstrap before any external code.
+printf '%s\n' 'CleanMyTV: external executable downloads are disabled. Owner approval and dependency audit are required; see README.md.' >&2
+exit 1
+# Reuse the repository's pinned Gradle distribution, but build this independent project.
+addon_dir=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd) || exit 1
+exec sh "$addon_dir/../../launcher/gradlew" -p "$addon_dir" "$@"

@@ -1,0 +1,18 @@
+pluginManagement {
+    // CleanMyTV: use reviewed local caches only; never fetch executable dependencies.
+    gradle.startParameter.offline = true
+    repositories {
+        google()
+        mavenCentral()
+        gradlePluginPortal()
+    }
+}
+dependencyResolutionManagement {
+    repositoriesMode.set(RepositoriesMode.FAIL_ON_PROJECT_REPOS)
+    repositories {
+        google()
+        mavenCentral()
+    }
+}
+rootProject.name = "world-clock"
+include ':app'
