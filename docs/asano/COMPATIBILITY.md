@@ -1,5 +1,7 @@
 # ASANO 32LH7030S — адаптация API 24
 
+> Исторический отчёт об адаптации исходников. Состояние после сборки и проверки подписанного тестового APK описано в [APK_AUDIT.md](APK_AUDIT.md).
+
 Дата: 2026-11-09. Ветка: `feature/android7-asano`.
 База: `Gathin23/cleanyourtv@294d3d59dc2514e69fed557f46c1ecdfb87a95ec`.
 
