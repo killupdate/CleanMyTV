@@ -1,3 +1,9 @@
+> **2026-11-09 — ветка `feature/android7-asano`: только подготовка исходников.**
+> API 24 и ограничения безопасности внесены, но APK **не собран**, совместимость и безопасность готового файла не подтверждены.
+> Среда Java/Android отсутствует; владелец не разрешил её скачивание. Исходный Manifest не запрашивает разрешений.
+> [Адаптация](docs/asano/COMPATIBILITY.md) · [Аудит и риски](docs/asano/SECURITY_AUDIT.md) · [План безопасной установки/возврата](docs/asano/SAFE_INSTALL.md).
+> Сведения об импорте ниже относятся к исходной точке до адаптации; текущие изменения зафиксированы отдельными коммитами.
+
 # CleanMyTV — independent source snapshot
 
 Original project: [Gathin23/cleanyourtv](https://github.com/Gathin23/cleanyourtv). Original author: **Gathin**, with the original contributors.
