@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <string name="app_name">Главный экран</string>
+    <string name="app_name">CleanMyTV</string>
     <string name="inputs">Источники</string>
     <string name="wifi">Wi-Fi</string>
     <string name="settings">Настройки</string>
@@ -155,4 +155,5 @@
     <string name="clock_format_system">Системные</string>
     <string name="clock_format_12">12-часовой</string>
     <string name="clock_format_24">24-часовой</string>
+    <string name="stock_home">Штатный экран ASANO</string>
 </resources>

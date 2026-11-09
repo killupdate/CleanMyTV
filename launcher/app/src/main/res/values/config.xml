@@ -1,6 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!--
-  Launcher configuration. Edit this file, then run launcher/build-and-install.sh.
+  CleanMyTV ASANO profile. Build and TV installation require separate owner approval.
+  Do not run inherited installers; see docs/asano/SAFE_INSTALL.md.
   Or leave it and push a theme instead: tools/theme.sh themes/<name> puts a config.json (same keys, see
   themes/README.md) and an optional wallpaper on the TV, and the launcher overlays it at start.
   Package names: on the TV run `pm list packages` (tools/tv.py 'pm list packages').
@@ -10,6 +11,7 @@
     <!-- Tried in order when no standard settings handler is usable; each package must also be visible
          through <queries> in the manifest. -->
     <string-array name="settings_fallback_components" translatable="false">
+        <item>com.cvte.tv.androidsetting/com.cvte.tv.androidsetting.TvSettingActivity</item>
         <item>com.xiaomi.mitv.settings/com.xiaomi.mitv.settings.entry.MainActivity</item>
         <item>com.tcl.settings/com.tcl.settings.ui.MainActivity</item>
         <item>com.amazon.tv.launcher/com.amazon.tv.launcher.ui.MainSettingsActivity</item>
@@ -34,7 +36,7 @@
     </string-array>
 
     <!-- The TV's Live TV / tuner app, offered at the end of the Inputs menu. Leave empty to omit. -->
-    <string name="live_tv_package" translatable="false">com.mediatek.wwtv.tvcenter</string>
+    <string name="live_tv_package" translatable="false">com.cvte.tv.player</string>
 
     <!-- Open the Live TV app above the first time Home comes up after the TV is switched on, for sets that are
          mostly used for broadcast TV. Once per boot: Home after that stays Home. Can also be set with

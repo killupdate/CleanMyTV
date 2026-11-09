@@ -16,6 +16,7 @@ param(
     [switch]$RestoreKeyServices
 )
 $ErrorActionPreference = 'Stop'
+throw 'CleanMyTV: inherited TV installer is disabled. See docs/asano/SAFE_INSTALL.md.'
 # Pipe plain UTF-8 to native commands; the default here prepends a BOM that corrupts the first command.
 $OutputEncoding = New-Object System.Text.UTF8Encoding $false
 if (-not $TvHost) { throw 'pass -TvHost <tv ip> or set $env:TV_HOST' }

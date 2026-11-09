@@ -1,4 +1,6 @@
 #!/usr/bin/env bash
+printf "%s\n" "CleanMyTV: inherited TV installer is disabled. See docs/asano/SAFE_INSTALL.md." >&2
+exit 1
 # Build the launcher APK and install it on the TV as the default home screen.
 set -euo pipefail
 cd "$(dirname "$0")"

@@ -431,9 +431,10 @@ final class Config {
         return GLASS_HALO.equalsIgnoreCase(v) ? GLASS_HALO : GLASS_DEFAULT;
     }
 
-    /** The folder the theme tools push into; null when external storage is unavailable. */
+    /** Private theme storage: other apps cannot inject configuration through shared storage. */
     static File dir(Context ctx) {
-        return ctx.getExternalFilesDir(null);
+        File dir = new File(ctx.getFilesDir(), "theme");
+        return dir.isDirectory() || dir.mkdirs() ? dir : null;
     }
 
     static Config load(Context ctx) {

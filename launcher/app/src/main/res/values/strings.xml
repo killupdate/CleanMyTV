@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <string name="app_name">Home</string>
+    <string name="app_name">CleanMyTV</string>
     <string name="inputs">Inputs</string>
     <string name="wifi">Wi-Fi</string>
     <string name="settings">Settings</string>
@@ -158,4 +158,5 @@
     <string name="clock_format_system">System</string>
     <string name="clock_format_12">12-hour</string>
     <string name="clock_format_24">24-hour</string>
+    <string name="stock_home">Stock ASANO home</string>
 </resources>

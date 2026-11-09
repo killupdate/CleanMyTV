@@ -32,13 +32,7 @@ import android.graphics.drawable.GradientDrawable;
 import android.media.tv.TvContract;
 import android.media.tv.TvInputInfo;
 import android.media.tv.TvInputManager;
-import android.net.ConnectivityManager;
-import android.net.Network;
-import android.net.NetworkCapabilities;
-import android.net.NetworkRequest;
 import android.net.Uri;
-import android.net.wifi.WifiInfo;
-import android.net.wifi.WifiManager;
 import android.os.Build;
 import android.os.Bundle;
 import android.os.Environment;
@@ -290,7 +284,7 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
         @Override
         public void run() {
             if (startPending == null) return;
-            if (!OpenOnStart.opensNow(OpenOnStart.online(MainActivity.this), SystemClock.elapsedRealtime(),
+            if (!OpenOnStart.opensNow(false, SystemClock.elapsedRealtime(),
                     startDeadline)) return;
             handler.removeCallbacks(this);   // the deadline's run, when the network came first
             Intent i = startPending;
@@ -328,6 +322,7 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
     private final TileRefresh tileRefresh = new TileRefresh();
     /** PackageManager's change counter at the last rebuild, to catch a package broadcast that never arrived. */
     private int packageSequence;
+    private java.util.List<String> packageSnapshot = java.util.Collections.emptyList();
     /** The Inputs or Module cards dropdown while one is open, so onPause can close it. */
     private PopupWindow openPopup;
     /** Reorder mode is on (top-bar button). */
@@ -361,31 +356,6 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
     private RecyclerView.OnScrollListener pendingFocusScroll;
 
     private final Handler handler = new Handler(Looper.getMainLooper());
-    /** Refreshes the network pill when the connection changes: at boot Wi-Fi often connects after Home is shown. */
-    private final ConnectivityManager.NetworkCallback networkCallback = new ConnectivityManager.NetworkCallback() {
-        @Override
-        public void onAvailable(@NonNull Network network) {
-            handler.post(MainActivity.this::updateWifiLabel);
-        }
-
-        @Override
-        public void onLost(@NonNull Network network) {
-            handler.post(MainActivity.this::updateWifiLabel);
-        }
-
-        /** wifi_status_warnings follows validation; signal-strength updates also land here, so skip those. */
-        private boolean lastValidated;
-
-        @Override
-        public void onCapabilitiesChanged(@NonNull Network network, @NonNull NetworkCapabilities caps) {
-            boolean validated = caps.hasCapability(NetworkCapabilities.NET_CAPABILITY_VALIDATED);
-            // open_on_start_network_wait: the boot's app opens on the first validated network.
-            if (validated && startPending != null) handler.post(openWhenOnline);
-            if (validated == lastValidated) return;
-            lastValidated = validated;
-            if (wifiNoInternetTint != null) handler.post(MainActivity.this::updateWifiLabel);
-        }
-    };
     /** Shows the Inputs pill once the TV registers an input: at boot HDMI inputs can appear after Home is shown. */
     private final TvInputManager.TvInputCallback inputCallback = new TvInputManager.TvInputCallback() {
         @Override
@@ -396,18 +366,6 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
         @Override
         public void onInputRemoved(String inputId) {
             updateInputsButton();
-        }
-    };
-    /** Listens for any VPN coming up or going down, even one this app's traffic is excluded from. */
-    private final ConnectivityManager.NetworkCallback vpnCallback = new ConnectivityManager.NetworkCallback() {
-        @Override
-        public void onAvailable(@NonNull Network network) {
-            handler.post(MainActivity.this::updateWifiLabel);
-        }
-
-        @Override
-        public void onLost(@NonNull Network network) {
-            handler.post(MainActivity.this::updateWifiLabel);
         }
     };
     private final IntentFilter packageFilter = new IntentFilter();
@@ -468,7 +426,7 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
         libraryOkOpens = cfg.libraryOkOpens;
         // restore_key_services: after a force stop, put back the remote's accessibility helpers that Android took
         // off the list (needs WRITE_SECURE_SETTINGS, granted by build-and-install with RESTORE_KEY_SERVICES=1).
-        if (cfg.restoreKeyServices) ServiceRepair.restore(this);
+        // No accessibility restoration or privileged settings writes in CleanMyTV.
         settingsRevision = settingsRevision();
         applyViewInputsHandler(cfg.handleViewInputs);
         settingsKeycodes = cfg.settingsKeycodes;
@@ -606,7 +564,7 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
             date.setPadding(0, (int) (4 * density), 0, 0);
         }
         vpnApp = cfg.vpnApp;
-        vpnPill = cfg.vpnPill && !cfg.topMenu;
+        vpnPill = false; // Offline profile does not observe or display VPN state.
         btnVpn = findViewById(R.id.btnVpn);
         moduleCards = cfg.moduleCards;
         hiddenApps = new HashSet<>(cfg.hiddenApps);
@@ -851,14 +809,7 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
         iconOnlyButtons = cfg.iconOnlyButtons;
         topMenu = cfg.topMenu;
         wifiIconOnly = iconOnlyButtons && cfg.wifiLabelWidth <= 0;
-        if (cfg.wifiStatusColor) {
-            wifiPlainTint = btnWifi.getCompoundDrawableTintList();
-            wifiOnlineTint = getColorStateList(R.color.pill_icon_online);
-            if (cfg.wifiStatusWarnings) {
-                wifiNoInternetTint = getColorStateList(R.color.pill_icon_no_internet);
-                wifiOfflineTint = getColorStateList(R.color.pill_icon_offline);
-            }
-        }
+        // Network state tints are disabled; this is only a system-settings shortcut.
         if (cfg.topMenu) {
             // One gear: Inputs and Wi-Fi move into its dropdown. The Wi-Fi pill stays hidden but keeps its
             // label up to date, which the menu's Wi-Fi row shows.
@@ -955,16 +906,8 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
             }
         }
 
-        ConnectivityManager cm = getSystemService(ConnectivityManager.class);
         TvInputManager tim = (TvInputManager) getSystemService(TV_INPUT_SERVICE);
         if (tim != null) tim.registerCallback(inputCallback, handler);
-        if (cm != null) {
-            cm.registerDefaultNetworkCallback(networkCallback);
-            cm.registerNetworkCallback(new NetworkRequest.Builder()
-                    .addTransportType(NetworkCapabilities.TRANSPORT_VPN)
-                    .removeCapability(NetworkCapabilities.NET_CAPABILITY_NOT_VPN)
-                    .build(), vpnCallback);
-        }
         // Not after recreate(): the launch intent survives it and would open the settings again.
         if (savedInstanceState == null && !openLauncherSettingsIfAsked(getIntent()) && !openLibraryIfAsked(getIntent())) {
             openInputsIfAsked(getIntent());
@@ -1123,7 +1066,7 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
         if (cinematic && heroMeta != null && lastFocused >= 0 && lastFocused < adapter.appCount()) updateHeroMeta(lastFocused);
         // The network and Inputs pills keep their state while Home is in the background, and callbacks update them
         // when the network or the inputs change, so this refresh only catches anything missed. Its binder calls
-        // (about 7 ms on a TCL C755, most of it WifiManager.getConnectionInfo) would hold up the first frame back
+        // (previously about 7 ms on a TCL C755 while network state was queried) would hold up the first frame back
         // on Home, so after the first resume it runs once that frame is drawn.
         if (pillsShown) {
             refreshPillsAfterNextDraw();
@@ -1233,13 +1176,29 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
         }
     }
 
+    /** API 24 fallback detects replacements as well as installs/removals, unlike a package count. */
+    private java.util.List<String> installedPackageSnapshot() {
+        java.util.List<String> snapshot = new java.util.ArrayList<>();
+        for (android.content.pm.PackageInfo info : getPackageManager().getInstalledPackages(0)) {
+            snapshot.add(info.packageName + ":" + info.versionCode + ":" + info.lastUpdateTime
+                    + ":" + (info.applicationInfo != null && info.applicationInfo.enabled));
+        }
+        java.util.Collections.sort(snapshot);
+        return snapshot;
+    }
+
     /** True when PackageManager reports apps changed since the last rebuild (one binder call). */
     private boolean packagesChangedSinceRebuild() {
+        if (Build.VERSION.SDK_INT < 26) return !packageSnapshot.equals(installedPackageSnapshot());
         ChangedPackages changed = getPackageManager().getChangedPackages(packageSequence);
         return changed != null && !changed.getPackageNames().isEmpty();
     }
 
     private int currentPackageSequence(int since) {
+        if (Build.VERSION.SDK_INT < 26) {
+            packageSnapshot = installedPackageSnapshot();
+            return 0;
+        }
         ChangedPackages changed = getPackageManager().getChangedPackages(since);
         return changed != null ? changed.getSequenceNumber() : since;
     }
@@ -1382,13 +1341,8 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
         unregisterReceiver(packageReceiver);
         if (openOnStartOnWake) unregisterReceiver(wakeReceiver);
         wallpaperPlayer.close();
-        ConnectivityManager cm = getSystemService(ConnectivityManager.class);
         TvInputManager tim = (TvInputManager) getSystemService(TV_INPUT_SERVICE);
         if (tim != null) tim.unregisterCallback(inputCallback);
-        if (cm != null) {
-            cm.unregisterNetworkCallback(networkCallback);
-            cm.unregisterNetworkCallback(vpnCallback);
-        }
     }
 
     /**
@@ -2921,54 +2875,17 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
         root.invalidate();   // a resume that changes nothing on screen still draws once, so the refresh runs
     }
 
-    /** Shows the Wi-Fi network name on the button when we can read it, otherwise the connection type. */
+    /** Offline Wi-Fi-settings shortcut: never reads or claims the connection state. */
     @SuppressWarnings("deprecation")
     private void updateWifiLabel() {
         String text = getString(R.string.wifi);
-        boolean vpn = false, online = false, validated = false;
+        boolean vpn = false, online = false, validated = true;
         int icon = R.drawable.ic_wifi;
         // The festive light (diya flame or jack-o'-lantern candle): 0 is out (offline), 1 to 4 follow the Wi-Fi
         // signal, Ethernet burns steady at 4.
-        int flame = 0;
+        int flame = 3;
         boolean steady = false;
-        try {
-            ConnectivityManager cm = (ConnectivityManager) getSystemService(Context.CONNECTIVITY_SERVICE);
-            boolean wifi = false, ethernet = false;
-            // All networks, not just the active one: with a VPN up the active network is the VPN itself.
-            for (Network net : cm != null ? cm.getAllNetworks() : new Network[0]) {
-                NetworkCapabilities caps = cm.getNetworkCapabilities(net);
-                if (caps == null) continue;
-                if (caps.hasTransport(NetworkCapabilities.TRANSPORT_VPN)) {
-                    vpn = true;
-                    continue;
-                }
-                if (!caps.hasCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET)) continue;
-                online = true;
-                // Android reached the internet through it; a captive portal stays unvalidated until login.
-                if (caps.hasCapability(NetworkCapabilities.NET_CAPABILITY_VALIDATED)) validated = true;
-                if (caps.hasTransport(NetworkCapabilities.TRANSPORT_ETHERNET)) ethernet = true;
-                if (caps.hasTransport(NetworkCapabilities.TRANSPORT_WIFI)) wifi = true;
-            }
-            if (!online) {
-                text = getString(R.string.offline);
-                vpn = false;
-            } else if (ethernet) {
-                text = getString(R.string.ethernet);
-                icon = R.drawable.ic_ethernet;
-                flame = 4;
-                steady = true;
-            } else if (wifi) {
-                WifiManager wm = (WifiManager) getApplicationContext().getSystemService(Context.WIFI_SERVICE);
-                WifiInfo info = wm != null ? wm.getConnectionInfo() : null;
-                String ssid = info != null ? info.getSSID() : null;
-                flame = info != null ? Math.max(1, Math.min(4, WifiManager.calculateSignalLevel(info.getRssi(), 5))) : 3;
-                if (ssid != null) {
-                    ssid = ssid.replace("\"", "").trim();
-                    if (!ssid.isEmpty() && !ssid.contains("unknown") && !ssid.equals("0x")) text = ssid;
-                }
-            }
-        } catch (Exception ignored) {
-        }
+        // Offline launcher: the button opens system Wi-Fi settings; no status, SSID or VPN probing.
         // With a VPN app configured, a VPN that is down matters too: show a red "VPN off" capsule then.
         boolean vpnDown = !vpn && online && !vpnApp.isEmpty();
         if (vpnPill) updateVpnPill(vpn);
@@ -3252,12 +3169,12 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
 
     private boolean openWhenReady(Intent i) {
         // open_on_start_network_wait: Home stays on screen until the network is back or the wait is over.
-        if (openOnStartWaitMs > 0 && !OpenOnStart.online(this)) {
+        if (openOnStartWaitMs > 0) {
             startPending = i;
             startDeadline = SystemClock.elapsedRealtime() + openOnStartWaitMs;
             handler.postDelayed(openWhenOnline, openOnStartWaitMs);
             // Validated between the check above and startPending: networkCallback may have skipped it.
-            if (OpenOnStart.online(this)) handler.post(openWhenOnline);
+            // Fixed local delay only; installed apps manage their own network access.
             return false;
         }
         open(i);
@@ -3268,6 +3185,7 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
     private Intent liveTvIntent() {
         if (liveTvPkg.isEmpty()) return null;
         Intent i = getPackageManager().getLeanbackLaunchIntentForPackage(liveTvPkg);
+        if (i == null) i = getPackageManager().getLaunchIntentForPackage(liveTvPkg);
         if (i != null || liveTvAction.isEmpty()) return i;
         Intent byAction = new Intent(liveTvAction).setPackage(liveTvPkg);
         return getPackageManager().resolveActivity(byAction, 0) != null ? byAction : null;
@@ -3298,6 +3216,17 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
         }
     }
 
+    /** Explicit recovery route; never changes HOME defaults or package enabled states. */
+    private void openStockHome() {
+        Intent stock = getPackageManager().getLeanbackLaunchIntentForPackage("com.asd.launcher");
+        if (stock == null) stock = getPackageManager().getLaunchIntentForPackage("com.asd.launcher");
+        if (stock == null) {
+            stock = new Intent(Intent.ACTION_MAIN).addCategory(Intent.CATEGORY_HOME)
+                    .setComponent(new ComponentName("com.asd.launcher", "com.asd.launcher2.Launcher2_2"));
+        }
+        open(stock);
+    }
+
     private void open(Intent i) {
         i.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
         try {
@@ -3326,6 +3255,7 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
      *  throws SecurityException, which used to take Home down with it (YaOS before the manifest asked
      *  for ACCESS_TV_SOURCE). */
     private void openInput(String inputId) {
+        if (openCvteInput(inputId)) return;
         // A CEC device is a child input of its HDMI port; the vendor source number belongs to the port
         // (MiTV-MFFU0). Only that lookup uses the parent: the generic path below still opens the child.
         String sourceId = inputId;
@@ -3381,6 +3311,28 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
             }
         }
         open(inputActionIntent().setDataAndType(uri, "vnd.android.cursor.item/channel"));
+    }
+
+    /** CVTE route described in original issue #1664. No guessed HDMI-port mapping. */
+    private boolean openCvteInput(String inputId) {
+        Integer hardwareId = CvteInput.hardwareId(inputId);
+        if (hardwareId == null) return false;
+        TvInputManager manager = (TvInputManager) getSystemService(TV_INPUT_SERVICE);
+        try {
+            if (manager == null || manager.getTvInputInfo(inputId) == null) return false;
+            Intent intent = new Intent(Intent.ACTION_VIEW).setComponent(new ComponentName(
+                    "com.cvte.tv.androidsetting", "com.cvte.tv.androidsetting.TvSettingActivity"));
+            ResolveInfo resolved = getPackageManager().resolveActivity(intent, 0);
+            if (resolved == null || resolved.activityInfo == null || !resolved.activityInfo.exported
+                    || resolved.activityInfo.applicationInfo == null
+                    || (resolved.activityInfo.applicationInfo.flags
+                    & android.content.pm.ApplicationInfo.FLAG_SYSTEM) == 0) return false;
+            startActivity(intent.putExtra("MTK_EXTRA_INPUT_ID", hardwareId.intValue())
+                    .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK));
+            return true;
+        } catch (RuntimeException unavailable) {
+            return false;
+        }
     }
 
     /** `input_action` as an intent: an explicit component when it reads "package/.Activity", else an action. */
@@ -3553,6 +3505,7 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
         if (rows.getChildCount() == 0 && !sourcePanelService.isEmpty()) {
             addInputRow(rows, popup, R.drawable.ic_input, getString(R.string.inputs), -1, this::openSourcePanel);
         }
+        addInputRow(rows, popup, R.drawable.ic_livetv, getString(R.string.stock_home), -1, this::openStockHome);
         Intent liveTv = liveTvIntent();
         if (liveTv != null && tunerId != null) {
             // Tune that input only when the Live TV package itself handles the URI.
@@ -3717,7 +3670,7 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
         if (dockRow) addSettingsMenuRow(rows, popup, R.string.dock_edit, this::startDockEdit);
         addSettingsMenuRow(rows, popup, R.string.reorder, this::toggleReorder);
         // A launcher may not restart the TV itself; the Home key helper can open the system power menu instead.
-        if (HomeKeyService.canOpenPowerMenu()) addSettingsMenuRow(rows, popup, R.string.power_menu, HomeKeyService::openPowerMenu);
+        addSettingsMenuRow(rows, popup, R.string.stock_home, this::openStockHome);
         panel.measure(View.MeasureSpec.UNSPECIFIED, View.MeasureSpec.UNSPECIFIED);
         popup.setWidth(Math.max((int) (200 * density), panel.getMeasuredWidth()));
         // Hebrew puts Settings at the left of the header: grow the menu inward from it.

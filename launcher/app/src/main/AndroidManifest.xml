@@ -5,26 +5,13 @@
     <uses-feature android:name="android.software.leanback" android:required="false" />
     <uses-feature android:name="android.hardware.touchscreen" android:required="false" />
     <uses-feature android:name="android.hardware.wifi" android:required="false" />
-    <uses-feature android:name="android.hardware.location.gps" android:required="false" />
-
-    <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
-    <uses-permission android:name="android.permission.ACCESS_WIFI_STATE" />
-    <!-- Needed since Android 10 to read the Wi-Fi network name for the network pill. Never requested at
-         runtime: build-and-install grants it with pm grant, so lint's Android 12 "ask for COARSE with
-         FINE" rule does not apply here. -->
-    <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION"
-        tools:ignore="CoarseFineLocation" />
-    <!-- Puts the remote's accessibility helpers back after a force stop of this app took them off the enabled
-         list (ServiceRepair). Granted with pm grant by build-and-install when a helper is enabled. -->
-    <uses-permission android:name="android.permission.WRITE_SECURE_SETTINGS"
-        tools:ignore="ProtectedPermissions" />
-    <!-- YaOS (Yandex TV OS): HDMI, AV and the tuner all play in com.yandex.tv.live, whose activities require
-         this permission (protection level normal, so it is granted at install). Ignored on other TVs. -->
-    <uses-permission android:name="yandex.tv.permission.ACCESS_TV_SOURCE" />
 
     <!-- Android 11+ package visibility: lets the launcher list the TV apps it shows as tiles, and the
          apps that declare a module card (docs/specs/card.md). -->
     <queries>
+        <package android:name="com.asd.launcher" />
+        <package android:name="com.cvte.tv.androidsetting" />
+        <package android:name="com.cvte.tv.player" />
         <!-- The standard settings handlers, so package visibility doesn't hide them and send the pills to a vendor fallback by mistake. -->
         <intent>
             <action android:name="android.settings.SETTINGS" />
@@ -55,7 +42,6 @@
             <action android:name="android.intent.action.MAIN" />
             <category android:name="com.gathin.tvhome.category.DOCK_CARD" />
         </intent>
-        <!-- stock_home_redirect: HomeKeyService looks up the stock launcher's HOME activity. -->
         <intent>
             <action android:name="android.intent.action.MAIN" />
             <category android:name="android.intent.category.HOME" />
@@ -76,6 +62,7 @@
         android:banner="@drawable/banner"
         android:theme="@style/Theme.TvHome"
         android:allowBackup="false"
+        android:usesCleartextTraffic="false"
         android:localeConfig="@xml/locales_config">
 
         <activity
@@ -103,6 +90,7 @@
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
                 <category android:name="android.intent.category.LEANBACK_LAUNCHER" />
+                <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>
 
@@ -111,14 +99,9 @@
             android:exported="false"
             android:excludeFromRecents="true"
             android:screenOrientation="landscape" />
-        <!-- The system input switcher (com.android.tv.action.VIEW_INPUTS), which is what the remote's Input
-             button becomes through the TV's Live TV app or InputKeyService. Disabled here and switched on by
-             MainActivity only while handle_view_inputs is true (config.xml or a theme), for sets whose stock
-             launcher was the only handler of the action (Hisense huangshan, Android TV 10): kept off, a TV with
-             its own input picker never sees a second candidate and a chooser. -->
         <activity
             android:name=".InputsRequestActivity"
-            android:exported="true"
+            android:exported="false"
             android:enabled="false"
             android:excludeFromRecents="true"
             android:noHistory="true"
@@ -145,27 +128,12 @@
             android:taskAffinity=""
             android:excludeFromRecents="true"
             android:theme="@style/Theme.TvHome" />
-        <!-- Home button for remotes that send KEYCODE_ALL_APPS (Xiaomi). Opt-in: HOME_KEY_SERVICE=1
-             build-and-install.sh; see HomeKeyService. -->
-        <service
-            android:name=".HomeKeyService"
-            android:label="@string/home_key_name"
-            android:directBootAware="true"
-            android:exported="true"
-            android:permission="android.permission.BIND_ACCESSIBILITY_SERVICE">
-            <intent-filter>
-                <action android:name="android.accessibilityservice.AccessibilityService" />
-            </intent-filter>
-            <meta-data
-                android:name="android.accessibilityservice"
-                android:resource="@xml/home_key_service" />
-        </service>
 
         <!-- market://launch?id=<package>: package-name app launches from the Android TV Remote service
              (Home Assistant android_tv_remote), normally served by the stock launcher. -->
         <activity
             android:name=".AppLaunchActivity"
-            android:exported="true"
+            android:exported="false"
             android:excludeFromRecents="true"
             android:noHistory="true"
             android:theme="@android:style/Theme.NoDisplay">
@@ -185,16 +153,6 @@
             android:noHistory="true"
             android:theme="@android:style/Theme.Black.NoTitleBar.Fullscreen" />
 
-        <!-- stock_home_redirect at boot: HomeKeyService opens this invisible activity once, so the screen behind
-             it sends a window event when it closes (HomeKeyService.probeAtBoot). -->
-        <activity
-            android:name=".ProbeActivity"
-            android:exported="false"
-            android:excludeFromRecents="true"
-            android:noHistory="true"
-            android:taskAffinity=""
-            android:theme="@android:style/Theme.Translucent.NoTitleBar" />
-
         <!-- Screensaver: pick it in Settings, or `settings put secure screensaver_components
              com.gathin.tvhome/.ClockDream` over adb. -->
         <service
@@ -208,49 +166,5 @@
             </intent-filter>
         </service>
 
-        <!-- tools/theme.sh writes the theme through this where the shell can't reach Android/data;
-             see ThemeProvider. WRITE_SECURE_SETTINGS: the adb shell has it, ordinary apps don't. -->
-        <provider
-            android:name=".ThemeProvider"
-            android:authorities="${applicationId}.theme"
-            android:exported="true"
-            android:permission="android.permission.WRITE_SECURE_SETTINGS" />
-
-        <!-- The remote's Input button (KEYCODE_TV or KEYCODE_TV_INPUT) opens the input switcher, and input_key_keycodes and
-         app_keys (config.xml or a theme) bring back other remote buttons; see InputKeyService. -->
-        <!-- Bound again by the system after a force stop, which restarts Home on firmware that kills
-             third-party apps (TCL tc8000_ay30a2). It reads no notification.
-             cmd notification allow_listener com.gathin.tvhome/.GuardRevival -->
-        <service
-            android:name=".GuardRevival"
-            android:directBootAware="true"
-            android:exported="true"
-            android:label="@string/home_key_name"
-            android:permission="android.permission.BIND_NOTIFICATION_LISTENER_SERVICE">
-            <intent-filter>
-                <action android:name="android.service.notification.NotificationListenerService" />
-            </intent-filter>
-        </service>
-        <receiver
-            android:name=".GuardConfig"
-            android:exported="true"
-            android:permission="android.permission.WRITE_SECURE_SETTINGS">
-            <intent-filter>
-                <action android:name="com.gathin.tvhome.GUARD" />
-            </intent-filter>
-        </receiver>
-
-        <service
-            android:name=".InputKeyService"
-            android:exported="false"
-            android:label="@string/app_name"
-            android:permission="android.permission.BIND_ACCESSIBILITY_SERVICE">
-            <intent-filter>
-                <action android:name="android.accessibilityservice.AccessibilityService" />
-            </intent-filter>
-            <meta-data
-                android:name="android.accessibilityservice"
-                android:resource="@xml/input_key_service" />
-        </service>
     </application>
 </manifest>
