@@ -510,7 +510,7 @@ public class AppAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder> {
         }
         android.content.SharedPreferences automotive = Automotive.prefs(ctx);
         boolean auto = automotive.getInt("wall", 0) != -2;
-        int tileMode = automotive.getInt("tileMode", 2);
+        int tileMode = automotive.getInt("tileMode", 0);
         h.icon.setAlpha(1f);
         if (auto) {
             GradientDrawable glow = new GradientDrawable(
@@ -518,11 +518,21 @@ public class AppAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder> {
             glow.setGradientType(GradientDrawable.RADIAL_GRADIENT);
             glow.setGradientRadius(60f * ctx.getResources().getDisplayMetrics().density);
             android.graphics.drawable.StateListDrawable focus = new android.graphics.drawable.StateListDrawable();
-            focus.addState(new int[]{android.R.attr.state_focused}, glow);
-            int alpha = tileMode == 0 ? 255 : tileMode == 1 ? automotive.getInt("plate", 50) * 255 / 100 : 0;
+            int alpha = tileMode == 0 ? 255 : tileMode == 1 ? automotive.getInt("plate", 100) * 255 / 100 : 0;
             GradientDrawable plate = new GradientDrawable();
             plate.setColor((alpha << 24) | 0x101925);
             plate.setCornerRadius(12f * ctx.getResources().getDisplayMetrics().density);
+            if (automotive.getBoolean("tileGlow", true)) {
+                focus.addState(new int[]{android.R.attr.state_focused},
+                        new android.graphics.drawable.LayerDrawable(new android.graphics.drawable.Drawable[]{plate, glow}));
+            }
+            else {
+                GradientDrawable outline = new GradientDrawable();
+                outline.setColor((alpha << 24) | 0x101925);
+                outline.setCornerRadius(12f * ctx.getResources().getDisplayMetrics().density);
+                outline.setStroke(2, 0xffbed4e6);
+                focus.addState(new int[]{android.R.attr.state_focused}, outline);
+            }
             focus.addState(new int[0], plate);
             h.card.setBackground(focus);
             h.card.setContentDescription(e.label);

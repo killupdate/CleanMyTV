@@ -34,6 +34,30 @@ final class Automotive {
         return context.getSharedPreferences("dark_automotive", Context.MODE_PRIVATE);
     }
 
+    static void migrateTiles(SharedPreferences p) {
+        if (p.getInt("tileSchema", 0) < 3) {
+            p.edit().putInt("tileMode", 0).putInt("plate", 100)
+                    .putBoolean("tileGlow", true).putInt("tileSchema", 3).apply();
+        }
+    }
+
+    static void tileSettings(Activity activity, Runnable changed) {
+        SharedPreferences p = prefs(activity);
+        String glow = p.getBoolean("tileGlow", true) ? "Подсветка: включена" : "Подсветка: выключена";
+        new AlertDialog.Builder(activity).setTitle("Плитки приложений")
+                .setSingleChoiceItems(new String[]{"Классические", "Полупрозрачные", "Только логотипы",
+                        "Непрозрачность фона: " + p.getInt("plate", 100) + "%", glow},
+                        p.getInt("tileMode", 0), (d, i) -> {
+                            d.dismiss();
+                            if (i == 3) slider(activity, "Непрозрачность фона", "plate", 100, changed);
+                            else {
+                                if (i == 4) p.edit().putBoolean("tileGlow", !p.getBoolean("tileGlow", true)).apply();
+                                else p.edit().putInt("tileMode", i).apply();
+                                changed.run();
+                            }
+                        }).setNegativeButton(android.R.string.cancel, null).show();
+    }
+
     static void settings(Activity activity, Runnable changed, Runnable legacy) {
         SharedPreferences p = prefs(activity);
         new AlertDialog.Builder(activity).setTitle("Фон и обои · Dark Automotive")
@@ -73,13 +97,7 @@ final class Automotive {
                                             }).show();
                             break;
                         case 4: slider(activity, "Интенсивность", "intensity", 35, changed); break;
-                        case 5:
-                            new AlertDialog.Builder(activity).setTitle("Плитки приложений")
-                                    .setItems(new String[]{"Классические", "Полупрозрачные", "Только логотипы", "Непрозрачность подложки"}, (d, i) -> {
-                                        if (i == 3) slider(activity, "Непрозрачность подложки", "plate", 50, changed);
-                                        else { p.edit().putInt("tileMode", i).apply(); changed.run(); }
-                                    }).show();
-                            break;
+                        case 5: tileSettings(activity, changed); break;
                         case 6: slider(activity, "Непрозрачность часов и погоды", "header", 85, changed); break;
                         case 7:
                             Intent helper = activity.getPackageManager().getLaunchIntentForPackage(HELPER);

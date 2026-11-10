@@ -159,4 +159,5 @@
     <string name="clock_format_12">12-hour</string>
     <string name="clock_format_24">24-hour</string>
     <string name="stock_home">Stock ASANO home</string>
+    <string name="automotive_tiles_menu" translatable="false">Внешний вид → Плитки приложений</string>
 </resources>
