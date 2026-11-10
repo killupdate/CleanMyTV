@@ -1611,6 +1611,7 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
 
     /** A tile's alpha: dim unless it is the carried one, or, in edit-dock mode, a dock tile other than the chosen place. */
     private float tileAlpha(int pos) {
+        if (Automotive.prefs(this).getInt("wall", 0) != -2) return 1f;
         if (movingKey != null) {
             return pos != RecyclerView.NO_POSITION && movingKey.equals(adapter.keyAt(pos)) ? 1f : 0.45f;
         }

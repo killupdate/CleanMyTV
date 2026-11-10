@@ -8,8 +8,10 @@ import java.util.Map;
 import static org.junit.Assert.assertEquals;
 
 public class AutomotiveTileMigrationTest {
-    @Test public void v2TileValuesResetOnceAndOtherPreferencesSurvive() {
+    @Test public void v3TileValuesBackedUpOnceAndOtherPreferencesSurvive() {
         Map<String, Object> values = new HashMap<>();
+        values.put("tileSchema", 3);
+        values.put("tileGlow", false);
         values.put("tileMode", 2);
         values.put("plate", 20);
         values.put("wall", 4);
@@ -37,7 +39,10 @@ public class AutomotiveTileMigrationTest {
         Automotive.migrateTiles(prefs);
         assertEquals(0, values.get("tileMode"));
         assertEquals(100, values.get("plate"));
-        assertEquals(true, values.get("tileGlow"));
+        assertEquals(false, values.get("tileGlow"));
+        assertEquals(2, values.get("v3TileMode"));
+        assertEquals(20, values.get("v3Plate"));
+        assertEquals(4, values.get("tileSchema"));
         assertEquals(4, values.get("wall"));
         assertEquals(37, values.get("header"));
         values.put("tileMode", 1);

@@ -35,27 +35,22 @@ final class Automotive {
     }
 
     static void migrateTiles(SharedPreferences p) {
-        if (p.getInt("tileSchema", 0) < 3) {
-            p.edit().putInt("tileMode", 0).putInt("plate", 100)
-                    .putBoolean("tileGlow", true).putInt("tileSchema", 3).apply();
+        if (p.getInt("tileSchema", 0) < 4) {
+            p.edit().putInt("v3TileMode", p.getInt("tileMode", 0))
+                    .putInt("v3Plate", p.getInt("plate", 100))
+                    .putInt("tileMode", 0).putInt("plate", 100)
+                    .putInt("tileSchema", 4).apply();
         }
     }
 
     static void tileSettings(Activity activity, Runnable changed) {
         SharedPreferences p = prefs(activity);
-        String glow = p.getBoolean("tileGlow", true) ? "Подсветка: включена" : "Подсветка: выключена";
-        new AlertDialog.Builder(activity).setTitle("Плитки приложений")
-                .setSingleChoiceItems(new String[]{"Классические", "Полупрозрачные", "Только логотипы",
-                        "Непрозрачность фона: " + p.getInt("plate", 100) + "%", glow},
-                        p.getInt("tileMode", 0), (d, i) -> {
-                            d.dismiss();
-                            if (i == 3) slider(activity, "Непрозрачность фона", "plate", 100, changed);
-                            else {
-                                if (i == 4) p.edit().putBoolean("tileGlow", !p.getBoolean("tileGlow", true)).apply();
-                                else p.edit().putInt("tileMode", i).apply();
-                                changed.run();
-                            }
-                        }).setNegativeButton(android.R.string.cancel, null).show();
+        new AlertDialog.Builder(activity).setTitle("Плитки приложений · непрозрачные")
+                .setMultiChoiceItems(new String[]{"Подсветка фокуса"},
+                        new boolean[]{p.getBoolean("tileGlow", true)}, (d, i, checked) -> {
+                            p.edit().putBoolean("tileGlow", checked).apply();
+                            changed.run();
+                        }).setPositiveButton(android.R.string.ok, null).show();
     }
 
     static void settings(Activity activity, Runnable changed, Runnable legacy) {
@@ -305,16 +300,23 @@ final class Automotive {
         clock.setTextSize(36);
         clock.setTextColor(0xffeef8ff);
         clock.setGravity(Gravity.CENTER);
-        header.addView(clock, new FrameLayout.LayoutParams(-1, -1));
+        FrameLayout.LayoutParams clockLayout = new FrameLayout.LayoutParams(dp(a, 190), dp(a, 58), Gravity.TOP | Gravity.CENTER_HORIZONTAL);
+        clockLayout.topMargin = dp(a, 12);
+        header.addView(clock, clockLayout);
         TextView weather = new TextView(a);
         weather.setTextColor(0xff9bdfff);
         weather.setTextSize(12);
         weather.setMaxLines(2);
         FrameLayout.LayoutParams weatherLayout = new FrameLayout.LayoutParams(dp(a, 105), -2, Gravity.TOP | Gravity.RIGHT);
         header.addView(weather, weatherLayout);
-        FrameLayout.LayoutParams top = new FrameLayout.LayoutParams(dp(a, 332), dp(a, 58), Gravity.TOP | Gravity.CENTER_HORIZONTAL);
-        top.topMargin = dp(a, 16);
+        FrameLayout.LayoutParams top = new FrameLayout.LayoutParams(dp(a, 410), dp(a, 86), Gravity.TOP | Gravity.CENTER_HORIZONTAL);
+        // Centre the complete block at one sixth of the available screen height.
+        top.topMargin = Math.max(0, a.getResources().getDisplayMetrics().heightPixels / 6 - dp(a, 43));
         root.addView(header, top);
+        root.addOnLayoutChangeListener((v, l, t, r, b, ol, ot, oright, ob) -> {
+            int margin = Math.max(0, (b - t) / 6 - header.getLayoutParams().height / 2);
+            if (top.topMargin != margin) { top.topMargin = margin; header.setLayoutParams(top); }
+        });
         View original = a.findViewById(R.id.clock);
         View date = a.findViewById(R.id.date);
         if (date instanceof TextClock && date.isShown()) {
@@ -325,7 +327,7 @@ final class Automotive {
             copy.setGravity(Gravity.CENTER);
             copy.setTextColor(0xffc8d9e7);
             copy.setTextSize(11);
-            header.addView(copy, new FrameLayout.LayoutParams(-1, dp(a, 16), Gravity.BOTTOM));
+            header.addView(copy, new FrameLayout.LayoutParams(dp(a, 190), dp(a, 16), Gravity.BOTTOM | Gravity.CENTER_HORIZONTAL));
         }
         if (original != null && original.getParent() instanceof View) {
             ((View) original.getParent()).setVisibility(View.INVISIBLE);

@@ -302,9 +302,11 @@ public class AppAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder> {
                 banner = bundledBanner(appBanners.get(pkg));
                 if (banner == null) banner = iconTiles.contains(pkg) ? iconBanner(ri.loadIcon(pm)) : loadBanner(pm, ri);
             }
-            // The icon is only drawn (and sampled for the glow) when there is no banner, so a tile with a
-            // banner skips loading and decoding it.
-            Drawable icon = banner == null ? ri.loadIcon(pm) : null;
+            // Automotive draws icons even when the application also supplies a TV banner.
+            Drawable icon;
+            try { icon = ri.loadIcon(pm); }
+            catch (RuntimeException unavailable) { icon = pm.getDefaultActivityIcon(); }
+            if (icon == null) icon = pm.getDefaultActivityIcon();
             if (card != null) {
                 fresh.add(new Entry(Entry.CARD, label, component, banner, icon, card.caption, card.accent));
             } else {
@@ -510,15 +512,22 @@ public class AppAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder> {
         }
         android.content.SharedPreferences automotive = Automotive.prefs(ctx);
         boolean auto = automotive.getInt("wall", 0) != -2;
-        int tileMode = automotive.getInt("tileMode", 0);
         h.icon.setAlpha(1f);
         if (auto) {
+            h.card.setAlpha(1f);
+            h.icon.setImageAlpha(255);
+            h.icon.clearColorFilter();
+            FrameLayout.LayoutParams iconLayout = (FrameLayout.LayoutParams) h.icon.getLayoutParams();
+            iconLayout.width = iconLayout.height = Math.round(h.card.getLayoutParams().height * ICON_SHARE);
+            iconLayout.gravity = android.view.Gravity.CENTER;
+            iconLayout.bottomMargin = 0;
+            h.icon.setLayoutParams(iconLayout);
             GradientDrawable glow = new GradientDrawable(
                     GradientDrawable.Orientation.TOP_BOTTOM, new int[]{0x6356c9ff, 0x0056c9ff});
             glow.setGradientType(GradientDrawable.RADIAL_GRADIENT);
             glow.setGradientRadius(60f * ctx.getResources().getDisplayMetrics().density);
             android.graphics.drawable.StateListDrawable focus = new android.graphics.drawable.StateListDrawable();
-            int alpha = tileMode == 0 ? 255 : tileMode == 1 ? automotive.getInt("plate", 100) * 255 / 100 : 0;
+            int alpha = 255;
             GradientDrawable plate = new GradientDrawable();
             plate.setColor((alpha << 24) | 0x101925);
             plate.setCornerRadius(12f * ctx.getResources().getDisplayMetrics().density);
@@ -540,7 +549,7 @@ public class AppAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder> {
             h.icon.setVisibility(View.VISIBLE);
             android.graphics.Bitmap custom = automotiveIcon(e.pkg);
             if (custom != null) h.icon.setImageBitmap(custom);
-            else h.icon.setImageDrawable(e.icon);
+            else h.icon.setImageDrawable(e.icon != null ? e.icon : ctx.getPackageManager().getDefaultActivityIcon());
             h.label.setVisibility(View.GONE);
             h.name.setVisibility(View.GONE);
         }
