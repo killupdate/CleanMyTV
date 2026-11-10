@@ -124,7 +124,7 @@ public final class LauncherSettingsActivity extends Activity {
             reverseRow(clockChoices);
         }
         wallpaperChoice = findViewById(R.id.wallpaperChoice);
-        wallpaperChoice.setOnClickListener(v -> showWallpaperPicker());
+        wallpaperChoice.setOnClickListener(v -> Automotive.settings(this, this::changed, this::showWallpaperPicker));
         animationsChoice = findViewById(R.id.animationsChoice);
         animationsChoice.setOnClickListener(v -> {
             animations = !animations;
@@ -181,6 +181,22 @@ public final class LauncherSettingsActivity extends Activity {
         LinearLayout row = (LinearLayout) views[0].getParent();
         row.removeAllViews();
         for (int i = views.length - 1; i >= 0; i--) row.addView(views[i]);
+    }
+
+    @Override
+    protected void onActivityResult(int request, int result, android.content.Intent data) {
+        super.onActivityResult(request, result, data);
+        if ((request != Automotive.IMPORT_BACKGROUND && request != Automotive.IMPORT_FOREGROUND && request != Automotive.IMPORT_ICON)
+                || result != RESULT_OK || data == null) return;
+        android.net.Uri uri = data.getData();
+        new Thread(() -> {
+            boolean ok = Automotive.importImage(this, uri, request);
+            runOnUiThread(() -> {
+                if (isDestroyed()) return;
+                if (ok) changed();
+                Toast.makeText(this, ok ? "Изображение сохранено" : "Изображение не удалось открыть", android.widget.Toast.LENGTH_SHORT).show();
+            });
+        }, "wallpaper-import").start();
     }
 
     private void showWallpaperPicker() {

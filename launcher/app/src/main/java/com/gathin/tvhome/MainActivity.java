@@ -139,6 +139,7 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
     private RecyclerView grid;
     private FrameLayout root;
     private WallpaperPlayer wallpaperPlayer;
+    private Automotive automotive;
     private GlassView glass;
     private View ambient;
     private TextView heroName;
@@ -909,6 +910,10 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
         TvInputManager tim = (TvInputManager) getSystemService(TV_INPUT_SERVICE);
         if (tim != null) tim.registerCallback(inputCallback, handler);
         // Not after recreate(): the launch intent survives it and would open the settings again.
+        if (Automotive.prefs(this).getInt("wall", 0) != -2) {
+            wallpaperPlayer.hideForAutomotive();
+            automotive = new Automotive(this, root, animations && !reducedMotion);
+        }
         if (savedInstanceState == null && !openLauncherSettingsIfAsked(getIntent()) && !openLibraryIfAsked(getIntent())) {
             openInputsIfAsked(getIntent());
         }
@@ -1029,6 +1034,7 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
     @Override
     protected void onResume() {
         super.onResume();
+        if (automotive != null) automotive.refreshWeather(this);
         resumed = true;
         // A festival that started or ended while Home was in the background: rebuild with or without it.
         if (festive != festival.active(LocalDate.now())) {
@@ -1380,6 +1386,7 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
      */
     @Override
     public boolean dispatchKeyEvent(KeyEvent event) {
+        if (automotive != null) automotive.move(event);
         if (homeIgnoreChannelKeys && RemoteKeys.isChannelKey(event.getKeyCode())) return true;
         // Vendor keys (TCL Netflix button, 4062) never reach the key services, only the focused window, so their
         // "hold:" entries run here too or nowhere. Only while resumed: onPause releases Home's holds, and a DOWN

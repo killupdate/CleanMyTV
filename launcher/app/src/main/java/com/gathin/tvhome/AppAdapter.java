@@ -508,6 +508,32 @@ public class AppAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder> {
             h.label.setText(e.label);
             h.label.setVisibility(uniformTiles ? View.GONE : View.VISIBLE);
         }
+        android.content.SharedPreferences automotive = Automotive.prefs(ctx);
+        boolean auto = automotive.getInt("wall", 0) != -2;
+        int tileMode = automotive.getInt("tileMode", 2);
+        h.icon.setAlpha(1f);
+        if (auto) {
+            GradientDrawable glow = new GradientDrawable(
+                    GradientDrawable.Orientation.TOP_BOTTOM, new int[]{0x6356c9ff, 0x0056c9ff});
+            glow.setGradientType(GradientDrawable.RADIAL_GRADIENT);
+            glow.setGradientRadius(60f * ctx.getResources().getDisplayMetrics().density);
+            android.graphics.drawable.StateListDrawable focus = new android.graphics.drawable.StateListDrawable();
+            focus.addState(new int[]{android.R.attr.state_focused}, glow);
+            int alpha = tileMode == 0 ? 255 : tileMode == 1 ? automotive.getInt("plate", 50) * 255 / 100 : 0;
+            GradientDrawable plate = new GradientDrawable();
+            plate.setColor((alpha << 24) | 0x101925);
+            plate.setCornerRadius(12f * ctx.getResources().getDisplayMetrics().density);
+            focus.addState(new int[0], plate);
+            h.card.setBackground(focus);
+            h.card.setContentDescription(e.label);
+            h.banner.setVisibility(View.GONE);
+            h.icon.setVisibility(View.VISIBLE);
+            android.graphics.Bitmap custom = automotiveIcon(e.pkg);
+            if (custom != null) h.icon.setImageBitmap(custom);
+            else h.icon.setImageDrawable(e.icon);
+            h.label.setVisibility(View.GONE);
+            h.name.setVisibility(View.GONE);
+        }
         h.card.setOnClickListener(v -> launch(e));
         h.card.setOnLongClickListener(v -> {
             if (tileMenu) {
@@ -666,6 +692,19 @@ public class AppAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder> {
 
     String packageAt(int position) {
         return position >= 0 && position < items.size() ? items.get(position).pkg : null;
+    }
+
+    private final android.util.LruCache<String, android.graphics.Bitmap> automotiveIcons = new android.util.LruCache<>(12);
+
+    private android.graphics.Bitmap automotiveIcon(String key) {
+        if (key == null) return null;
+        android.graphics.Bitmap bitmap = automotiveIcons.get(key);
+        if (bitmap != null) return bitmap;
+        java.io.File file = Automotive.iconFile(ctx, key);
+        if (file == null || !file.isFile()) return null;
+        bitmap = android.graphics.BitmapFactory.decodeFile(file.getPath());
+        if (bitmap != null) automotiveIcons.put(key, bitmap);
+        return bitmap;
     }
 
     /** The tile's artwork, its banner or else its icon, for the cinematic shelf's backdrop (HeroArt). */

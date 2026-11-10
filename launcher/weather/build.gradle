@@ -1,0 +1,15 @@
+plugins {
+    id 'com.android.application'
+}
+
+android {
+    namespace 'com.killupdate.cleanmytv.weather'
+    compileSdk 34
+    defaultConfig {
+        applicationId 'com.killupdate.cleanmytv.weather'
+        minSdk 24
+        targetSdk 34
+        versionCode 1
+        versionName '0.1-automotive-test'
+    }
+}

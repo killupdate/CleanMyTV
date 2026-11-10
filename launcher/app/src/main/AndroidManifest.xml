@@ -9,6 +9,7 @@
     <!-- Android 11+ package visibility: lets the launcher list the TV apps it shows as tiles, and the
          apps that declare a module card (docs/specs/card.md). -->
     <queries>
+        <package android:name="com.killupdate.cleanmytv.weather" />
         <package android:name="com.asd.launcher" />
         <package android:name="com.cvte.tv.androidsetting" />
         <package android:name="com.cvte.tv.player" />

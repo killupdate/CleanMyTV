@@ -62,6 +62,13 @@ final class WallpaperPlayer {
     private LocalDate sunDay;
     private int[] sun;
 
+    void hideForAutomotive() {
+        files.clear();
+        releaseForMemoryPressure();
+        image.setVisibility(View.GONE);
+        if (caption != null) caption.setVisibility(View.GONE);
+    }
+
     WallpaperPlayer(Context context, FrameLayout root, Config config) {
         this.root = root;
         backgroundColor = config.backgroundColor;
